@@ -55,6 +55,31 @@ namespace LightReflectiveMirror
             _sendBuffers.Return(sendBuffer);
 
             Endpoint.RoomsModified();
+
+            if (switchHostRooms.ContainsKey(clientId))
+            {
+                Room oldRoom = switchHostRooms[clientId];
+                pos = 0;
+                sendBuffer = _sendBuffers.Rent(5);
+
+                sendBuffer.WriteByte(ref pos, (byte)OpCodes.SwitchServerTo);
+                sendBuffer.WriteString(ref pos, room.serverId);
+
+                for (int x = 0; x < oldRoom.clients.Count; x++)
+                {
+                    if (oldRoom.clients[x] == clientId)
+                        continue;
+                    Program.transport.ServerSend(oldRoom.clients[x], 0, new ArraySegment<byte>(sendBuffer, 0, pos));
+                    _cachedClientRooms.Remove(oldRoom.clients[x]);
+                }
+
+                _sendBuffers.Return(sendBuffer);
+                oldRoom.clients.Clear();
+                _cachedRooms.Remove(oldRoom.serverId);
+                rooms.Remove(oldRoom);
+                switchHostRooms.Remove(clientId);
+                Endpoint.RoomsModified();
+            }
         }
 
         /// <summary>
@@ -143,28 +168,58 @@ namespace LightReflectiveMirror
         /// <param name="requiredHostId">The ID of the client who kicked the client. -1 if the client left on their own terms</param>
         private void LeaveRoom(int clientId, int requiredHostId = -1)
         {
+
             for (int i = 0; i < rooms.Count; i++)
             {
                 // if host left
                 if (rooms[i].hostId == clientId)
                 {
-                    int pos = 0;
-                    byte[] sendBuffer = _sendBuffers.Rent(1);
-                    sendBuffer.WriteByte(ref pos, (byte)OpCodes.ServerLeft);
 
-                    for (int x = 0; x < rooms[i].clients.Count; x++)
                     {
-                        Program.transport.ServerSend(rooms[i].clients[x], 0, new ArraySegment<byte>(sendBuffer, 0, pos));
-                        _cachedClientRooms.Remove(rooms[i].clients[x]);
-                    }
+                        int pos = 0;
+                        byte[] sendBuffer = _sendBuffers.Rent(1);
+                        int client = rooms[i].clients.FindIndex(p => !switchHostRooms.ContainsKey(p));
+                        if (client != -1)
+                        {
+                            {
+                                sendBuffer.WriteByte(ref pos, (byte)OpCodes.SwitchServerHost);
+                                Program.transport.ServerSend(rooms[i].clients[client], 0, new ArraySegment<byte>(sendBuffer, 0, pos));
+                                _cachedClientRooms.Remove(rooms[i].clients[client]);
+                                switchHostRooms.Add(rooms[i].clients[client], rooms[i]);
+                                _cachedRooms.Remove(rooms[i].serverId);
+                                rooms.RemoveAt(i);
+                                Endpoint.RoomsModified();
+                            }
+                            _sendBuffers.Return(sendBuffer);
+                            {
+                                pos = 0;
+                                sendBuffer = _sendBuffers.Rent(1);
 
-                    _sendBuffers.Return(sendBuffer);
-                    rooms[i].clients.Clear();
-                    _cachedRooms.Remove(rooms[i].serverId);
-                    rooms.RemoveAt(i);
-                    _cachedClientRooms.Remove(clientId);
-                    Endpoint.RoomsModified();
-                    return;
+                                sendBuffer.WriteByte(ref pos, (byte)OpCodes.ServerLeft);
+
+                                Program.transport.ServerSend(clientId, 0, new ArraySegment<byte>(sendBuffer, 0, pos));
+                            }
+                        }
+                        else
+                        {
+                            sendBuffer.WriteByte(ref pos, (byte)OpCodes.ServerLeft);
+
+                            for (int x = 0; x < rooms[i].clients.Count; x++)
+                            {
+                                Program.transport.ServerSend(rooms[i].clients[x], 0, new ArraySegment<byte>(sendBuffer, 0, pos));
+                                _cachedClientRooms.Remove(rooms[i].clients[x]);
+                            }
+
+                            rooms[i].clients.Clear();
+                            _cachedRooms.Remove(rooms[i].serverId);
+                            rooms.RemoveAt(i);
+                            _cachedClientRooms.Remove(clientId);
+                            Endpoint.RoomsModified();
+                        }
+
+                        _sendBuffers.Return(sendBuffer);
+                        return;
+                    }
                 }
                 else
                 {
@@ -172,7 +227,7 @@ namespace LightReflectiveMirror
                     if (requiredHostId != -1 && rooms[i].hostId != requiredHostId)
                         continue;
 
-                    if (rooms[i].clients.RemoveAll(x => x == clientId) > 0)
+                    if (!switchHostRooms.ContainsValue(rooms[i]) && rooms[i].clients.RemoveAll(x => x == clientId) > 0)
                     {
                         int pos = 0;
                         byte[] sendBuffer = _sendBuffers.Rent(5);

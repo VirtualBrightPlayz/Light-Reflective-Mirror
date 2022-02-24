@@ -313,6 +313,26 @@ namespace LightReflectiveMirror
                             _NATPuncher.BeginReceive(new AsyncCallback(RecvData), _NATPuncher);
                         }
                         break;
+
+                    case OpCodes.SwitchServerTo:
+                        if (_isClient)
+                        {
+                            _isClient = false;
+                            OnClientDisconnected?.Invoke();
+                        }
+                        string uri = data.ReadString(ref pos);
+                        NetworkManager.singleton.networkAddress = uri;
+                        NetworkManager.singleton.StartClient();
+                        break;
+
+                    case OpCodes.SwitchServerHost:
+                        if (_isClient)
+                        {
+                            _isClient = false;
+                            OnClientDisconnected?.Invoke();
+                        }
+                        OnSwitchHost?.Invoke();
+                        break;
                 }
             }
             catch (Exception e) { print(e); }
@@ -422,7 +442,8 @@ namespace LightReflectiveMirror
         {
             Default = 0, RequestID = 1, JoinServer = 2, SendData = 3, GetID = 4, ServerJoined = 5, GetData = 6, CreateRoom = 7, ServerLeft = 8, PlayerDisconnected = 9, RoomCreated = 10,
             LeaveRoom = 11, KickPlayer = 12, AuthenticationRequest = 13, AuthenticationResponse = 14, Authenticated = 17, UpdateRoomData = 18, ServerConnectionData = 19, RequestNATConnection = 20,
-            DirectConnectIP = 21
+            DirectConnectIP = 21,
+            SwitchServerTo = 22, SwitchServerHost = 23
         }
 
         private static string GetLocalIp()
