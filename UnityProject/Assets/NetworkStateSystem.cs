@@ -340,7 +340,7 @@ public class NetworkStateSystem : MonoBehaviour
                         NetworkServer.AddPlayerForConnection(owners[obj.ownerData], net.gameObject);
                     else
                     {
-                        Destroy(owners[obj.ownerData].identity);
+                        Destroy(owners[obj.ownerData].identity.gameObject);
                         NetworkServer.ReplacePlayerForConnection(owners[obj.ownerData], net.gameObject);
                     }
                 }

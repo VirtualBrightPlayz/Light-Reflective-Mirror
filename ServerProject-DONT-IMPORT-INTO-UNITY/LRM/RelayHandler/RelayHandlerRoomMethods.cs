@@ -187,7 +187,7 @@ namespace LightReflectiveMirror
                                 _cachedClientRooms.Remove(rooms[i].clients[client]);
                                 switchHostRooms.Add(rooms[i].clients[client], rooms[i]);
                                 _cachedRooms.Remove(rooms[i].serverId);
-                                _cachedClientRooms.Remove(clientId);
+                                // _cachedClientRooms.Remove(clientId);
                                 rooms.RemoveAt(i);
                                 Endpoint.RoomsModified();
                             }
