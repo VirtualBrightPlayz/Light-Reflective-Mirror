@@ -326,6 +326,7 @@ namespace LightReflectiveMirror
                         break;
 
                     case OpCodes.SwitchServerHost:
+                        OnPreSwitchHost?.Invoke();
                         if (_isClient)
                         {
                             _isClient = false;

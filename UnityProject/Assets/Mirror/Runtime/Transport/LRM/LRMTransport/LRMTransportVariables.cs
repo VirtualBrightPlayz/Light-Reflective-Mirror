@@ -68,6 +68,7 @@ namespace LightReflectiveMirror
         private BiDictionary<int, int> _connectedRelayClients = new BiDictionary<int, int>();
         private BiDictionary<int, int> _connectedDirectClients = new BiDictionary<int, int>();
         private bool _serverListUpdated = false;
+        public System.Action OnPreSwitchHost;
         public System.Action OnSwitchHost = () => NetworkManager.singleton.StartHost();
     }
 
